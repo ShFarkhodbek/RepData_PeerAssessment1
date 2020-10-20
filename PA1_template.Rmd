@@ -7,19 +7,70 @@ output:
 
 
 ## Loading and preprocessing the data
+```{r, echo = TRUE}
+setwd("~/Documents/Project/RepData_PeerAssessment1")
+library(ggplot2)
+unzip("./activity.zip")
 
+act <- read.csv("./activity.csv")
+act$date <- as.POSIXct(act$date, "%Y-%m-%d")
+weekday <- weekdays(act$date)
+act <- cbind(act,weekday)
 
+summary(act)
 
 ## What is mean total number of steps taken per day?
+```{r, echo = TRUE}
+act_total_steps <- with(act, aggregate(steps, by = list(date), FUN = sum, 
+na.rm = TRUE))
+names(act_total_steps) <- c("date", "steps")
+hist(act_total_steps$steps, main = "Total number of steps taken per day", 
+xlab = "Total steps taken per day", col = "green")
 
-
+mean(act_total_steps$steps)
+median(act_total_steps$steps)
 
 ## What is the average daily activity pattern?
+```{r, echo = TRUE}
+average_daily_act <- aggregate(act$steps, by=list(act$interval), FUN=mean, 
+na.rm=TRUE)
+names(average_daily_act) <- c("interval", "mean")
+plot(average_daily_act$interval, average_daily_act$mean, type = "l", 
+col="green", xlab="Interval", ylab="Average number of steps", 
+main="Average number of steps per intervals")
 
-
+average_daily_act[which.max(average_daily_act$mean), ]$interval
 
 ## Imputing missing values
+```{r, echo = TRUE}
+sum(is.na(act$steps))
+imputed_steps <- average_daily_act$mean[match(act$interval, 
+average_daily_act$interval)]
+act_imputed <- transform(act, steps = ifelse(is.na(act$steps), 
+yes = imputed_steps, no = act$steps))
+total_steps_imputed <- aggregate(steps ~ date, act_imputed, sum)
+names(total_steps_imputed) <- c("date", "daily_steps")
+hist(total_steps_imputed$daily_steps, col = "darkblue", xlab = "Total steps per 
+day", main = "Total number of steps taken each day")
 
-
+mean(total_steps_imputed$daily_steps)
+median(total_steps_imputed$daily_steps)
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r, echo = TRUE}
+act$date <- as.Date(strptime(act$date, format="%Y-%m-%d"))
+act$datetype <- sapply(act$date, function(x) {
+        if (weekdays(x) == "Sábado" | weekdays(x) =="Domingo") 
+                {y <- "Weekend"} else 
+                {y <- "Weekday"}
+                y
+        })
+act_by_date <- aggregate(steps~interval + datetype, act, mean, na.rm = TRUE)
+plot<- ggplot(act_by_date, aes(x = interval , y = steps, color = datetype)) +
+      geom_line() +
+      labs(title = "Average daily steps by type of date", x = "Interval", 
+      y = "Average number of steps") +
+      facet_wrap(~datetype, ncol = 1, nrow=2)
+print(plot)
+
+
